@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Building2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 
@@ -66,44 +65,23 @@ const CompanyAuth = () => {
     try {
       const validatedData = companySignUpSchema.parse(signUpData);
       
-      const redirectUrl = `${window.location.origin}/`;
+      // Mock: salvar no localStorage
+      const companies = JSON.parse(localStorage.getItem('mockCompanies') || '[]');
       
-      const { error } = await supabase.auth.signUp({
-        email: validatedData.companyEmail,
-        password: validatedData.password,
-        options: {
-          emailRedirectTo: redirectUrl,
-          data: {
-            company_name: validatedData.companyName,
-            cnpj: validatedData.cnpj,
-            address: validatedData.address,
-            company_phone: validatedData.companyPhone,
-            company_email: validatedData.companyEmail,
-            responsible_name: validatedData.responsibleName,
-            responsible_role: validatedData.responsibleRole,
-            responsible_phone: validatedData.responsiblePhone,
-            responsible_email: validatedData.responsibleEmail,
-            user_type: 'company'
-          }
-        }
-      });
-
-      if (error) {
-        if (error.message.includes('already registered')) {
-          toast({
-            title: "Email já cadastrado",
-            description: "Este email já está registrado. Tente fazer login.",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Erro no cadastro",
-            description: error.message,
-            variant: "destructive",
-          });
-        }
+      // Verificar se empresa já existe
+      if (companies.find((c: any) => c.cnpj === validatedData.cnpj)) {
+        toast({
+          title: "CNPJ já cadastrado",
+          description: "Este CNPJ já está registrado. Tente fazer login.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
         return;
       }
+
+      // Adicionar nova empresa
+      companies.push(validatedData);
+      localStorage.setItem('mockCompanies', JSON.stringify(companies));
 
       toast({
         title: "Cadastro realizado!",
@@ -132,14 +110,29 @@ const CompanyAuth = () => {
     try {
       const validatedData = companySignInSchema.parse(signInData);
       
-      // Para login com CNPJ, precisamos buscar o email associado primeiro
-      // Por agora, vamos usar uma abordagem simplificada
+      // Mock: verificar no localStorage
+      const companies = JSON.parse(localStorage.getItem('mockCompanies') || '[]');
+      const company = companies.find(
+        (c: any) => c.cnpj === validatedData.cnpj && c.password === validatedData.password
+      );
+
+      if (!company) {
+        toast({
+          title: "Erro no login",
+          description: "CNPJ ou senha incorretos.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      localStorage.setItem('mockCurrentCompany', JSON.stringify(company));
       toast({
-        title: "Funcionalidade em desenvolvimento",
-        description: "O login com CNPJ será implementado em breve. Use o email da empresa para fazer login.",
-        variant: "destructive",
+        title: "Login realizado!",
+        description: "Bem-vinda de volta!",
       });
       
+      navigate("/");
     } catch (error) {
       if (error instanceof z.ZodError) {
         const firstError = error.errors[0];

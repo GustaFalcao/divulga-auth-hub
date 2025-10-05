@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Users } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 
@@ -51,38 +50,29 @@ const UserAuth = () => {
     try {
       const validatedData = userSignUpSchema.parse(signUpData);
       
-      const redirectUrl = `${window.location.origin}/`;
+      // Mock: salvar no localStorage
+      const users = JSON.parse(localStorage.getItem('mockUsers') || '[]');
       
-      const { error } = await supabase.auth.signUp({
-        email: validatedData.email,
-        password: validatedData.password,
-        options: {
-          emailRedirectTo: redirectUrl,
-          data: {
-            name: validatedData.name,
-            phone: validatedData.phone,
-            birth_date: validatedData.birthDate,
-            user_type: 'user'
-          }
-        }
-      });
-
-      if (error) {
-        if (error.message.includes('already registered')) {
-          toast({
-            title: "Email já cadastrado",
-            description: "Este email já está registrado. Tente fazer login.",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Erro no cadastro",
-            description: error.message,
-            variant: "destructive",
-          });
-        }
+      // Verificar se usuário já existe
+      if (users.find((u: any) => u.email === validatedData.email)) {
+        toast({
+          title: "Email já cadastrado",
+          description: "Este email já está registrado. Tente fazer login.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
         return;
       }
+
+      // Adicionar novo usuário
+      users.push({
+        email: validatedData.email,
+        password: validatedData.password,
+        name: validatedData.name,
+        phone: validatedData.phone,
+        birthDate: validatedData.birthDate,
+      });
+      localStorage.setItem('mockUsers', JSON.stringify(users));
 
       toast({
         title: "Cadastro realizado!",
@@ -111,20 +101,23 @@ const UserAuth = () => {
     try {
       const validatedData = userSignInSchema.parse(signInData);
       
-      const { error } = await supabase.auth.signInWithPassword({
-        email: validatedData.email,
-        password: validatedData.password,
-      });
+      // Mock: verificar no localStorage
+      const users = JSON.parse(localStorage.getItem('mockUsers') || '[]');
+      const user = users.find(
+        (u: any) => u.email === validatedData.email && u.password === validatedData.password
+      );
 
-      if (error) {
+      if (!user) {
         toast({
           title: "Erro no login",
           description: "Email ou senha incorretos.",
           variant: "destructive",
         });
+        setIsLoading(false);
         return;
       }
 
+      localStorage.setItem('mockCurrentUser', JSON.stringify(user));
       toast({
         title: "Login realizado!",
         description: "Bem-vindo de volta!",
