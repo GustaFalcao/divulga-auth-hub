@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Users } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { z } from "zod";
 
 const userSignUpSchema = z.object({
@@ -28,7 +28,6 @@ const userSignInSchema = z.object({
 
 const UserAuth = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [signUpData, setSignUpData] = useState({
     name: "",
@@ -51,43 +50,46 @@ const UserAuth = () => {
       const validatedData = userSignUpSchema.parse(signUpData);
       
       // Mock: salvar no localStorage
-      const users = JSON.parse(localStorage.getItem('mockUsers') || '[]');
+      const users = JSON.parse(localStorage.getItem('users') || '[]');
       
       // Verificar se usuário já existe
       if (users.find((u: any) => u.email === validatedData.email)) {
-        toast({
-          title: "Email já cadastrado",
-          description: "Este email já está registrado. Tente fazer login.",
-          variant: "destructive",
-        });
+        toast.error("Email já cadastrado. Tente fazer login.");
         setIsLoading(false);
         return;
       }
 
       // Adicionar novo usuário
-      users.push({
+      const newUser = {
+        id: Date.now().toString(),
         email: validatedData.email,
         password: validatedData.password,
         name: validatedData.name,
         phone: validatedData.phone,
         birthDate: validatedData.birthDate,
-      });
-      localStorage.setItem('mockUsers', JSON.stringify(users));
+      };
+      users.push(newUser);
+      localStorage.setItem('users', JSON.stringify(users));
 
-      toast({
-        title: "Cadastro realizado!",
-        description: "Bem-vindo ao DivulgaMais!",
+      toast.success("Cadastro realizado! Faça login para continuar.");
+      
+      // Reset form and switch to sign-in tab
+      setSignUpData({
+        name: "",
+        email: "",
+        phone: "",
+        password: "",
+        confirmPassword: "",
+        birthDate: "",
       });
       
-      navigate("/");
+      // Switch to sign-in tab
+      const signInTab = document.querySelector('[value="signin"]') as HTMLButtonElement;
+      if (signInTab) signInTab.click();
     } catch (error) {
       if (error instanceof z.ZodError) {
         const firstError = error.errors[0];
-        toast({
-          title: "Erro de validação",
-          description: firstError.message,
-          variant: "destructive",
-        });
+        toast.error(firstError.message);
       }
     } finally {
       setIsLoading(false);
@@ -102,36 +104,25 @@ const UserAuth = () => {
       const validatedData = userSignInSchema.parse(signInData);
       
       // Mock: verificar no localStorage
-      const users = JSON.parse(localStorage.getItem('mockUsers') || '[]');
+      const users = JSON.parse(localStorage.getItem('users') || '[]');
       const user = users.find(
         (u: any) => u.email === validatedData.email && u.password === validatedData.password
       );
 
       if (!user) {
-        toast({
-          title: "Erro no login",
-          description: "Email ou senha incorretos.",
-          variant: "destructive",
-        });
+        toast.error("Email ou senha incorretos.");
         setIsLoading(false);
         return;
       }
 
-      localStorage.setItem('mockCurrentUser', JSON.stringify(user));
-      toast({
-        title: "Login realizado!",
-        description: "Bem-vindo de volta!",
-      });
+      localStorage.setItem('currentUser', JSON.stringify(user));
+      toast.success("Login realizado com sucesso!");
       
-      navigate("/");
+      navigate("/search");
     } catch (error) {
       if (error instanceof z.ZodError) {
         const firstError = error.errors[0];
-        toast({
-          title: "Erro de validação",
-          description: firstError.message,
-          variant: "destructive",
-        });
+        toast.error(firstError.message);
       }
     } finally {
       setIsLoading(false);

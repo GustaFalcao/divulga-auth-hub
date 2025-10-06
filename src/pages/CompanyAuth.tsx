@@ -6,13 +6,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Building2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { z } from "zod";
 
 const companySignUpSchema = z.object({
   companyName: z.string().trim().min(2, "Nome da empresa deve ter pelo menos 2 caracteres").max(100, "Nome muito longo"),
   cnpj: z.string().trim().min(14, "CNPJ deve ter 14 dígitos").max(18, "CNPJ inválido"),
   address: z.string().trim().min(10, "Endereço deve ser mais detalhado").max(200, "Endereço muito longo"),
+  city: z.string().trim().min(2, "Cidade é obrigatória").max(100, "Cidade muito longa"),
+  state: z.string().trim().min(2, "Estado é obrigatório").max(2, "Use a sigla do estado (ex: SP)"),
   companyPhone: z.string().trim().min(10, "Telefone deve ter pelo menos 10 dígitos").max(20, "Telefone muito longo"),
   companyEmail: z.string().trim().email("Email inválido").max(255, "Email muito longo"),
   responsibleName: z.string().trim().min(2, "Nome do responsável deve ter pelo menos 2 caracteres").max(100, "Nome muito longo"),
@@ -33,12 +35,13 @@ const companySignInSchema = z.object({
 
 const CompanyAuth = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [signUpData, setSignUpData] = useState({
     companyName: "",
     cnpj: "",
     address: "",
+    city: "",
+    state: "",
     companyPhone: "",
     companyEmail: "",
     responsibleName: "",
@@ -66,37 +69,32 @@ const CompanyAuth = () => {
       const validatedData = companySignUpSchema.parse(signUpData);
       
       // Mock: salvar no localStorage
-      const companies = JSON.parse(localStorage.getItem('mockCompanies') || '[]');
+      const companies = JSON.parse(localStorage.getItem('companies') || '[]');
       
       // Verificar se empresa já existe
       if (companies.find((c: any) => c.cnpj === validatedData.cnpj)) {
-        toast({
-          title: "CNPJ já cadastrado",
-          description: "Este CNPJ já está registrado. Tente fazer login.",
-          variant: "destructive",
-        });
+        toast.error("CNPJ já cadastrado. Tente fazer login.");
         setIsLoading(false);
         return;
       }
 
       // Adicionar nova empresa
-      companies.push(validatedData);
-      localStorage.setItem('mockCompanies', JSON.stringify(companies));
-
-      toast({
-        title: "Cadastro realizado!",
-        description: "Bem-vinda ao DivulgaMais!",
-      });
+      const newCompany = {
+        id: Date.now().toString(),
+        ...validatedData,
+      };
+      companies.push(newCompany);
+      localStorage.setItem('companies', JSON.stringify(companies));
       
-      navigate("/");
+      // Store current company
+      localStorage.setItem("currentCompany", JSON.stringify(newCompany));
+
+      toast.success("Cadastro realizado com sucesso!");
+      navigate("/company/dashboard");
     } catch (error) {
       if (error instanceof z.ZodError) {
         const firstError = error.errors[0];
-        toast({
-          title: "Erro de validação",
-          description: firstError.message,
-          variant: "destructive",
-        });
+        toast.error(firstError.message);
       }
     } finally {
       setIsLoading(false);
@@ -111,36 +109,26 @@ const CompanyAuth = () => {
       const validatedData = companySignInSchema.parse(signInData);
       
       // Mock: verificar no localStorage
-      const companies = JSON.parse(localStorage.getItem('mockCompanies') || '[]');
+      const companies = JSON.parse(localStorage.getItem('companies') || '[]');
       const company = companies.find(
         (c: any) => c.cnpj === validatedData.cnpj && c.password === validatedData.password
       );
 
       if (!company) {
-        toast({
-          title: "Erro no login",
-          description: "CNPJ ou senha incorretos.",
-          variant: "destructive",
-        });
+        toast.error("CNPJ ou senha incorretos.");
         setIsLoading(false);
         return;
       }
 
-      localStorage.setItem('mockCurrentCompany', JSON.stringify(company));
-      toast({
-        title: "Login realizado!",
-        description: "Bem-vinda de volta!",
-      });
+      // Store current company
+      localStorage.setItem("currentCompany", JSON.stringify(company));
       
-      navigate("/");
+      toast.success("Login realizado com sucesso!");
+      navigate("/company/dashboard");
     } catch (error) {
       if (error instanceof z.ZodError) {
         const firstError = error.errors[0];
-        toast({
-          title: "Erro de validação",
-          description: firstError.message,
-          variant: "destructive",
-        });
+        toast.error(firstError.message);
       }
     } finally {
       setIsLoading(false);
@@ -237,11 +225,37 @@ const CompanyAuth = () => {
                     <Input
                       id="address"
                       type="text"
-                      placeholder="Rua, número, bairro, cidade, estado e CEP"
+                      placeholder="Rua, número, bairro e CEP"
                       value={signUpData.address}
                       onChange={(e) => setSignUpData({ ...signUpData, address: e.target.value })}
                       required
                     />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="city">Cidade</Label>
+                      <Input
+                        id="city"
+                        type="text"
+                        placeholder="São Paulo"
+                        value={signUpData.city}
+                        onChange={(e) => setSignUpData({ ...signUpData, city: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="state">Estado (Sigla)</Label>
+                      <Input
+                        id="state"
+                        type="text"
+                        placeholder="SP"
+                        maxLength={2}
+                        value={signUpData.state}
+                        onChange={(e) => setSignUpData({ ...signUpData, state: e.target.value.toUpperCase() })}
+                        required
+                      />
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
